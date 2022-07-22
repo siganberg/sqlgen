@@ -1,4 +1,4 @@
-# SerilogElasticSearch [![Nuget](https://img.shields.io/nuget/v/Siganberg.SqlGen)](https://www.nuget.org/packages/Siganberg.SqlGen/) [![Nuget](https://img.shields.io/nuget/dt/Siganberg.SqlGen)](https://www.nuget.org/packages/Siganberg.SqlGen/)
+# Siganberg.SqlGen [![Nuget](https://img.shields.io/nuget/v/Siganberg.SqlGen)](https://www.nuget.org/packages/Siganberg.SqlGen/) [![Nuget](https://img.shields.io/nuget/dt/Siganberg.SqlGen)](https://www.nuget.org/packages/Siganberg.SqlGen/)
 
 
 ## Installtion 
