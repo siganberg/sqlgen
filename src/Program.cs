@@ -89,17 +89,19 @@ void GenerateStoredProcedures(string storeProcedureName, Database database, stri
     }
 
     schemas.Add(storedProcedure.Schema);
-    
-    var tableScripts = storedProcedure.Script();
+
     var path = $"{targetPath}/StoredProcedures/{storedProcedure.Schema}.{storedProcedure.Name}.sql";
-    using var file = File.CreateText(path);
-    Log.Logger.Information("Generating file: {Path}", path);
-    foreach (var script in tableScripts)
+
+    var scriptOptions = new ScriptingOptions
     {
-        file.WriteLine(script);
-    }
-    file.Flush();
-    file.Close();
+        DriAll = true,
+        FileName = path,
+        ExtendedProperties = true
+    };
+        
+    storedProcedure.Script(scriptOptions);
+    
+
 }
 
 void CreateDatabaseFolder(string targetPath, SqlGenConfig.Database database)
@@ -145,23 +147,16 @@ void GenerateTableContent(string tableName, Database database, HashSet<string> v
         GenerateTableContent(parentTableName, database, visited, targetPath, schemas, true);
     }
         
+    var path = $"{targetPath}/Tables/{table.Schema}.{table.Name}.sql";
     var scriptOptions = new ScriptingOptions
     {
         ScriptForCreateDrop = true,
         Indexes = true,
         IncludeIfNotExists = false,
-        DriForeignKeys = true,
         DriAllConstraints = true,
+        ExtendedProperties = true,
+        FileName = path
     };
         
-    var tableScripts = table.Script(scriptOptions);
-    var path = $"{targetPath}/Tables/{table.Schema}.{table.Name}.sql";
-    using var file = File.CreateText(path);
-    Log.Logger.Information("Generating file: {Path}", path);
-    foreach (var script in tableScripts)
-    {
-        file.WriteLine(script);
-    }
-    file.Flush();
-    file.Close();
+    table.Script(scriptOptions);
 }
