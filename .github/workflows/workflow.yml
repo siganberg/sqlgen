@@ -1,9 +1,6 @@
 name: dotnet package
 
-on: 
-  push:
-    branches:
-    - main
+on: [push]
 
 jobs:
   build:
@@ -15,13 +12,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        
       - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
         uses: actions/setup-dotnet@v2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
+          
+      - name: Install dependencies
+        run: dotnet restore
+        
+      - name: Build
+        run: dotnet build -c Release --no-restore
+        
+      - name: Packaging
+        run: dotnet pack -c Release -o out
+        
       - name: Nuget Publish
-        id: publish_nuget
-        uses: brandedoutcast/publish-nuget@v2
-        with:
-          PROJECT_FILE_PATH: src/Siganberg.SqlGen.csproj
-          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+        run: dotnet nuget push ./src/SiganBerg.SqlGen/out/*.nupkg --skip-duplicate --no-symbols -k ${{ secrets.NUGET_API_KEY }} -s "https://api.nuget.org/v3/index.json"
+  
