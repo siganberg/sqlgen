@@ -25,11 +25,13 @@ public class SqlGenConfig
         public string FolderName { get; set; }
 
         public string GeneratedName => string.IsNullOrEmpty(FolderName) ? Name : FolderName;
+        public IEnumerable<string> Views { get; set; }
 
         public Database()
         {
             StoredProcedures = Enumerable.Empty<string>();
             Tables = Enumerable.Empty<string>();
+            Views = Enumerable.Empty<string>();
         }
     }
 }

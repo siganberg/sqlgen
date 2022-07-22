@@ -3,11 +3,14 @@
 
 ## About
 
-This dotnet tools can generate `CREATE` sql scripts for stored procedures, tables and schemas. You just need to create `sqlgen.json` that contains connection information such as server and credentials, list of databases, stored procedures and tables. The tool can automatically detect `REFERENCES` for `TABLE` and will automatically include it in the generation.  
+This dotnet tools can generate `CREATE` sql scripts for stored procedures, tables, views and schemas. You just need to create `sqlgen.json` that contains connection information such as server and credentials, list of databases, stored procedures and tables. The tool can automatically detect dependencies and will automatically include in the generation. 
 
-I use this tool to generate scripts from an existing database and use EF migration for provisioning the development database. The generated scripts can also be used in our CI pipeline to initialize an empty database before running all integration tests. 
+***Why do I even need this tool, I can just use the SQL Studio to generate the whole database?***
 
-## Installtion 
+Yes you can, but if you are working on legacy system that are not properly segragated, the database can contains thousands of sql objects such tables, stored procedures and views. And if your application only needed few of these sql objets, it is cumbersome to generate them individually in MS SQL Studio manually. And you can also say it's better to have everything, it doesn't harm. Not always the case. For example, I worked on a project that we automate everything in development box and  CI which includes running unit and integration testing. When running integration tests, we start our own instance of SQL Server, run EF migrations using the generated scripts from this too, run tests, and then tear it down. Everything is done on docker container and executed multiple times in our development machine or on our CI pipeline. So having large migration scripts will drastically slow down this process.
+
+
+## Installation 
 
 Install the tools globally. 
 
@@ -35,6 +38,9 @@ dotnet tool install --global Siganberg.SqlGen
       "StoredProcedures" : [
         "[shop].[spx_Get_Orders]",
         "[shop].[spx_Get_Orders_With_Items]"
+      ],
+      "Views" : [
+        "[shop].[vw_OrderSummary]"
       ]
     },
     {
@@ -73,3 +79,4 @@ On CLI (command-line interface), execute the following command to start the gene
 |     FolderName                | empty   | If ***FolderName*** is empty it will use the ***Name*** as the FolderName. Output format will be `/{BasePath}/{FolderName}`.  | 
 |     Tables                | empty   | Array/List of table names. Format should be `[schema].[tableName]`  | 
 |     Stored Procedures                | empty   | Array/List of stored procedures. Format should be `[schema].[storedProcedureName]` | 
+|     Stored Procedures                | empty   | Array/List of stored procedures. Format should be `[schema].[viewname]` | 
