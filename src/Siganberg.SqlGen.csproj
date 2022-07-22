@@ -6,13 +6,13 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sqlgen</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <Authors>Francis Marasigan</Authors>
     <Company>Siganberg</Company>
     <PackageId>Siganberg.SqlGen</PackageId>
     <PackageProjectUrl>https://github.com/siganberg/sqlgen</PackageProjectUrl>
     <PackageReleaseNotes>
-      - Make sqlgen.json lower case.
+      - Fixed schema creation bug.
     </PackageReleaseNotes>
   </PropertyGroup>
 

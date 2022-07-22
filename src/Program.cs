@@ -72,7 +72,7 @@ void GenerateSchema(string schemaName, string targetPath)
     var path = $"{targetPath}/Schemas/{schemaName}.sql";
     using var file = File.CreateText(path);
     Log.Logger.Information("Generating file: {Path}", path);
-        file.WriteLine(schemaName);
+        file.WriteLine("CREATE SCHEMA " + schemaName);
     file.Flush();
     file.Close();
 }
