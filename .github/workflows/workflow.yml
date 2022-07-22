@@ -28,5 +28,5 @@ jobs:
         run: dotnet pack -c Release -o out
         
       - name: Nuget Publish
-        run: dotnet nuget push ./src/SiganBerg.SqlGen/out/*.nupkg --skip-duplicate --no-symbols -k ${{ secrets.NUGET_API_KEY }} -s "https://api.nuget.org/v3/index.json"
+        run: dotnet nuget push ./out/*.nupkg --skip-duplicate --no-symbols -k ${{ secrets.NUGET_API_KEY }} -s "https://api.nuget.org/v3/index.json"
   
