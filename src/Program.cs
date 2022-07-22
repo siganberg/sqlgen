@@ -15,12 +15,9 @@ void GenerateSqlFiles()
         .WriteTo.Console()
         .CreateLogger();
         
-    Log.Logger.Information("Generating SQL Generator starting..");
-    
     Log.Logger.Information("Generating SQL Generator starting...");
     var currentDirectory = Directory.GetCurrentDirectory();
     var jsonConfig = currentDirectory + "/" + "sqlgen.json";
-    
 
     if (!File.Exists(jsonConfig))
     {
