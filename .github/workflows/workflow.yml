@@ -16,9 +16,9 @@ jobs:
         uses: actions/setup-dotnet@v2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
-      - name: Install dependencies
-        run: dotnet restore
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-      - name: Pack
-        run: dotnet pack
+      - name: Nuget Publish
+        id: publish_nuget
+        uses: brandedoutcast/publish-nuget@v2
+        with:
+          PROJECT_FILE_PATH: src/Siganberg.SqlGen.csproj
+          NUGET_KEY: '${{ secrets.NUGET_API_KEY }}'
