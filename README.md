@@ -70,6 +70,7 @@ On CLI (command-line interface), execute the following command to start the gene
 |     Password                | no default (required)   | Database password. |
 |     TargetPath                | empty   | The base path of the generated scripts will be the location of `sqlgen.json` plus the ***TargetPath***. BasePath = `/{sqlgen.json path}/{TargetPath}`.  |
 |     Databases                | no default (required)   | List of databases that contain SQL object to generate. |
+|     Name                | no default (required)   | Name of the database.  |
 |     FolderName                | empty   | If ***FolderName*** is empty it will use the ***Name*** as the FolderName. Output format will be `/{BasePath}/{FolderName}`.  | 
 |     Tables                | empty   | Array/List of table names. Format should be `[schema].[tableName]`  | 
 |     Stored Procedures                | empty   | Array/List of stored procedures. Format should be `[schema].[storedProcedureName]` | 
