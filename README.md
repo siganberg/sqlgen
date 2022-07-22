@@ -9,12 +9,11 @@ I use this tool to generate scripts from an existing database and use EF migrati
 
 ## Installtion 
 
-To install the Siganberg.SqlGen NuGet package into your app.
+Install the tools globally. 
 
 ```console
 dotnet tool install --global Siganberg.SqlGen
 ```
-
 
 
 ## Sample `sqlgen.json`
@@ -54,7 +53,7 @@ dotnet tool install --global Siganberg.SqlGen
 
 On CLI (command-line interface), execute the following command to start the generation. 
 
-```bash
+```console
 /<path_where_sqlgen.json>/sqlgen
 ```
 
