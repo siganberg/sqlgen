@@ -19,12 +19,12 @@ void GenerateSqlFiles()
     
     Log.Logger.Information("Generating SQL Generator starting...");
     var currentDirectory = Directory.GetCurrentDirectory();
-    var jsonConfig = currentDirectory + "/" + "SqlGen.json";
+    var jsonConfig = currentDirectory + "/" + "sqlgen.json";
     
 
     if (!File.Exists(jsonConfig))
     {
-        Log.Logger.Information("SqlGen.json cannot be found");
+        Log.Logger.Information("sqlgen.json cannot be found");
         return;
     }
 
@@ -33,7 +33,7 @@ void GenerateSqlFiles()
 
     if (configModel == null)
     {
-        Log.Logger.Information("SqlGen.json has invalid content");
+        Log.Logger.Information("sqlgen.json has invalid content");
         return;
     }
 
