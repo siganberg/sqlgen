@@ -1,5 +1,12 @@
 {
   "version": 1,
   "isRoot": true,
-  "tools": {}
+  "tools": {
+    "siganberg.sqlgen": {
+      "version": "1.0.5",
+      "commands": [
+        "sqlgen"
+      ]
+    }
+  }
 }

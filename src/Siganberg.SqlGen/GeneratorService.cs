@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Sdk.Sfc;
 using Microsoft.SqlServer.Management.Smo;
 using Serilog;
@@ -13,47 +11,50 @@ namespace Siganberg.SqlGen;
 public class GeneratorService
 {
     private readonly ILogger _logger;
-
-    public GeneratorService()
+    private readonly SqlGenConfig _config;
+    private readonly Server _server;
+    private readonly string _rootPath; 
+    public GeneratorService(SqlGenConfig configuration, Server server)
     {
         _logger = new LoggerConfiguration()
             .WriteTo.Console()
             .CreateLogger();
+        _config = configuration;
+        _server = server;
+        _rootPath = Directory.GetCurrentDirectory() + "/" + _config.TargetPath;
+
     }
 
     public void Run()
     {
         _logger.Information("Generating SQL Generator starting...");
-        
-        var config = GetSqlGenConfig();
-        var connection = new ServerConnection(config.Server, config.Username, config.Password);
-        var server = new Server(connection);
-        var targetPath = Directory.GetCurrentDirectory() + "/" + config.TargetPath;
 
-        foreach (var d in config.Databases)
+
+        foreach (var d in _config.Databases)
         {
             _logger.Information("Generating database scripts for {Name}", d.Name);
             var urns = new HashSet<Urn>();
-            
-            if (ValidateDatabaseInput(d)) 
+
+            if (ValidateDatabaseInput(d))
                 continue;
-            
-            var database = GetDatabase(server, d);
-            var databasePath = SetupTargetLocation(targetPath, d);
+
+            var database = GetDatabase(d);
+            if (database == null) continue;
 
             urns.UnionWith(CollectUrn(d.Tables, (name, schema) => database.Tables[name, schema]));
             urns.UnionWith(CollectUrn(d.StoredProcedures, (name, schema) => database.StoredProcedures[name, schema]));
             urns.UnionWith(CollectUrn(d.Views, (name, schema) => database.Views[name, schema]));
 
-            var depCollection = CreateDependencyCollection(server, urns);
-            var schemas = GenerateSqlFiles(depCollection, database, databasePath);
+            if (urns.Count == 0) continue;
+            
+            var depCollection = CreateDependencyCollection(_server, urns);
+            var schemas = GenerateSqlFiles(depCollection);
 
             foreach (var schema in schemas)
-                GenerateSchema(schema, databasePath);
+                GenerateSchema(schema);
         }
-        
-        _logger.Information("Generation completed!");
 
+        _logger.Information("Generation completed!");
     }
 
     private bool ValidateDatabaseInput(SqlGenConfig.Database d)
@@ -67,50 +68,88 @@ public class GeneratorService
         return false;
     }
 
-    private Database GetDatabase(Server server, SqlGenConfig.Database d)
+    private Database GetDatabase(SqlGenConfig.Database d)
     {
-        var database = server.Databases[d.Name];
+        var database = _server.Databases[d.Name];
         if (database == null)
-        {
             _logger.Information("Database with name {Name} not found", d.Name);
-            return database;
-        }
-
         return database;
     }
+    
+    private Database GetDatabase(Urn urn)
+    {
+   
+        while (urn != null)
+        {
+            if (urn.Type == "Database")
+            {
+                var name = urn.GetAttribute("Name");
+                var database = _server.Databases[name];
+                if (database == null)
+                    _logger.Warning("Database with name {Name} doesn't exist", name);
+                return database;
+            }
+            urn = urn.Parent;
+        }
+        return null;
+    }
 
-    private HashSet<string> GenerateSqlFiles(DependencyCollection depCollection, Database database, string targetPath)
+    private HashSet<string> GenerateSqlFiles(DependencyCollection depCollection)
     {
         var schemas = new HashSet<string>();
 
         foreach (var dep in depCollection)
         {
+            var database = GetDatabase(dep.Urn);
+            if (database == null) continue; 
             switch (dep.Urn.Type)
             {
                 case "Table":
                 {
-                    var obj = database.Tables[dep.Urn.GetAttribute("Name"), dep.Urn.GetAttribute("Schema")];
-                    GenerateFile(obj, targetPath + "/Tables", o => obj.Script(o));
+                    var obj = GetSqlObject(dep.Urn, (name, schema) => database.Tables[name, schema]);
+                    GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/Tables", o => obj.Script(o));
                     break;
                 }
                 case "StoredProcedure":
                 {
-                    var obj = database.StoredProcedures[dep.Urn.GetAttribute("Name"), dep.Urn.GetAttribute("Schema")];
-                    GenerateFile(obj, targetPath + "/StoredProcedures", o => obj.Script(o));
+                    var obj = GetSqlObject(dep.Urn, (name, schema) => database.StoredProcedures[name, schema]);
+                    GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/StoredProcedures", o => obj.Script(o));
                     break;
                 }
                 case "View":
                 {
-                    var obj = database.Views[dep.Urn.GetAttribute("Name"), dep.Urn.GetAttribute("Schema")];
-                    GenerateFile(obj, targetPath + "/Views", o => obj.Script(o));
+                    var obj = GetSqlObject(dep.Urn, (name, schema) => database.Views[name, schema]);
+                    GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/Views", o => obj.Script(o));
                     break;
                 }
             }
 
-            schemas.Add(dep.Urn.GetAttribute("Schema"));
+            schemas.Add($"{database.Name}.{dep.Urn.GetAttribute("Schema")}");
         }
 
         return schemas;
+    }
+
+    private string MapDatabaseToFolderName(string databaseName)
+    {
+        var dConfig = _config.Databases.FirstOrDefault(a => a.Name.ToLower() == databaseName.ToLower());
+        var name = dConfig?.FolderName;
+        if (string.IsNullOrEmpty(name))
+            name = databaseName.StripBracket();
+        return name;
+    }
+    
+  
+
+    private T GetSqlObject<T>(Urn urn, Func<string, string, T> func)
+    {
+        var name = urn.GetAttribute("Name");
+        var schema = urn.GetAttribute("Schema");
+        var obj = func.Invoke(name, schema);
+        
+        if (obj == null)
+            _logger.Warning("SQL object or the dependencies doesn't exist:  {Schema}.{Name}", schema, name);
+        return obj;
     }
 
     private static DependencyCollection CreateDependencyCollection(Server server, HashSet<Urn> urns)
@@ -121,7 +160,7 @@ public class GeneratorService
         return depCollection;
     }
 
-    private static List<Urn> CollectUrn(IEnumerable<string> names,  Func<string, string, SqlSmoObject> collector)
+    private static List<Urn> CollectUrn(IEnumerable<string> names, Func<string, string, SqlSmoObject> collector)
     {
         var urns = new List<Urn>();
         foreach (var name in names)
@@ -131,32 +170,15 @@ public class GeneratorService
             if (sqlObject == null) continue;
             urns.Add(sqlObject.Urn);
         }
+
         return urns;
     }
 
-    string SetupTargetLocation(string targetPath, SqlGenConfig.Database database)
+    void GenerateFile(ScriptSchemaObjectBase sqlObject, string targetPath, Action<ScriptingOptions> callback)
     {
-        var databaseName = string.IsNullOrEmpty(database.FolderName) ? database.Name : database.FolderName;
-        var databasePath = targetPath + $"/{databaseName}";
-    
-        CreateDirectoryIfNotExist(databasePath + "/Tables");
-        CreateDirectoryIfNotExist(databasePath + "/StoredProcedures");
-        CreateDirectoryIfNotExist(databasePath + "/Schemas");
-        CreateDirectoryIfNotExist(databasePath + "/Views");
-
-        return databasePath;
-    }
-
-    static void CreateDirectoryIfNotExist(string path)
-    {
-        if (!Directory.Exists(path))
-            Directory.CreateDirectory(path!);
-    }
-
-
-    void GenerateFile(ScriptSchemaObjectBase storedProcedure, string targetPath, Action<ScriptingOptions> callback )
-    {
-        var path = $"{targetPath}/{storedProcedure.Schema}.{storedProcedure.Name}.sql";
+        if (sqlObject == null) return;
+        var path = $"{targetPath}/{sqlObject.Schema}.{sqlObject.Name}.sql";
+        CreateDirectoryFirst(path);
         _logger.Information("Generating file: {Path}", path);
         var scriptOptions = new ScriptingOptions
         {
@@ -167,33 +189,25 @@ public class GeneratorService
             FileName = path
         };
         callback.Invoke(scriptOptions);
-        
     }
-    
-    void GenerateSchema(string schemaName, string targetPath)
+
+    void GenerateSchema(string schemaName)
     {
-        var path = $"{targetPath}/Schemas/{schemaName}.sql";
+        var split = schemaName.Split(".");
+        var databaseName = split[0];
+        var name = split[1];
+        var path = $"{_rootPath}/{MapDatabaseToFolderName(databaseName)}/Schemas/{name}.sql";
+        CreateDirectoryFirst(path);
         _logger.Information("Generating file: {Path}", path);
         using var file = File.CreateText(path);
-        file.WriteLine("CREATE SCHEMA " + schemaName);
+        file.WriteLine("CREATE SCHEMA " + name);
         file.Close();
     }
 
-    private static SqlGenConfig GetSqlGenConfig()
+    private static void CreateDirectoryFirst(string path)
     {
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var jsonConfig = currentDirectory + "/" + "sqlgen.json";
-        if (!File.Exists(jsonConfig))
-        {
-            Log.Logger.Information("sqlgen.json cannot be found");
-        }
-
-        var configFile = File.ReadAllText(jsonConfig);
-        var configModel = JsonSerializer.Deserialize<SqlGenConfig>(configFile);
-        if (configModel == null)
-        {
-            Log.Logger.Information("sqlgen.json has invalid content");
-        }
-        return configModel;
+        var directory = Path.GetDirectoryName(path);
+        if (!Directory.Exists(directory))
+            Directory.CreateDirectory(directory!);
     }
 }
