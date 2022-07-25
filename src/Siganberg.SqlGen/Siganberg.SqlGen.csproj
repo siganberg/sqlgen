@@ -6,13 +6,13 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sqlgen</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
-    <Version>1.0.7</Version>
+    <Version>1.0.8</Version>
     <Authors>Francis Marasigan</Authors>
     <Company>Siganberg</Company>
     <PackageId>Siganberg.SqlGen</PackageId>
     <PackageProjectUrl>https://github.com/siganberg/sqlgen</PackageProjectUrl>
     <PackageReleaseNotes>
-      - Bugfixes.
+      - Added ability to just generate sql object and its dependencies using `sqlgen {sql-object}`
     </PackageReleaseNotes>
   </PropertyGroup>
 

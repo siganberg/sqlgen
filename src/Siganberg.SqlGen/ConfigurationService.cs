@@ -13,6 +13,7 @@ public class ConfigurationService
         if (!File.Exists(jsonConfig))
         {
             Log.Logger.Information("sqlgen.json cannot be found");
+            return null;
         }
 
         var configFile = File.ReadAllText(jsonConfig);
@@ -20,6 +21,7 @@ public class ConfigurationService
         if (configModel == null)
         {
             Log.Logger.Information("sqlgen.json has invalid content");
+            return null;
         }
 
         return configModel;

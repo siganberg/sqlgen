@@ -7,7 +7,7 @@ This dotnet tools can generate `CREATE` sql scripts for stored procedures, table
 
 ***Why do I even need this tool, I can just use the SQL Studio to generate the whole database?***
 
-Yes you can, but if you are working on legacy system that are not properly segragated, the database can contains thousands of sql objects such tables, stored procedures and views. And if your application only needed few of these sql objets, it is cumbersome to generate them individually in MS SQL Studio manually. And you can also say it's better to have everything, it doesn't harm. Not always the case. For example, I worked on a project that we automate everything in development box and  CI which includes running unit and integration testing. When running integration tests, we start our own instance of SQL Server, run EF migrations using the generated scripts from this too, run tests, and then tear it down. Everything is done on docker container and executed multiple times in our development machine or on our CI pipeline. So having large migration scripts will drastically slow down this process.
+Yes you can, but if you are working on legacy system that are not properly segragated, the database can contains thousands of sql objects such tables, stored procedures and views. And if your application only needed few of these sql objets, it is cumbersome to generate them individually in MS SQL Studio manually. And you can also say it's better to have everything, it doesn't harm. Not always the case. For example, I worked on a project that we automate everything in development box and  CI which includes running unit and integration testing. When running integration tests, we start our own instance of SQL Server, run EF migrations using the generated scripts from this tool, run tests, and then tear it down. Everything is done on docker container and executed multiple times in our development machine or on our CI pipeline. So having large migration scripts will drastically slow down this process.
 
 
 ## Installation 
@@ -29,11 +29,11 @@ dotnet tool install --global Siganberg.SqlGen
   "TargetPath" : "Migrations",
   "Databases" : [
     {
-      "Name":"Shop",
+      "Name":"ShopDb",
       "FolderName" : "ShopMigration",
       "Tables" : [
         "[shop].[TBL_Orders]",
-        "[shop].[TBL_OrderLineItems]",
+        "[shop].[TBL_OrderLineItems]"
       ],
       "StoredProcedures" : [
         "[shop].[spx_Get_Orders]",
@@ -44,7 +44,7 @@ dotnet tool install --global Siganberg.SqlGen
       ]
     },
     {
-      "Name":"Inventory",
+      "Name":"InventoryDb",
       "FolderName" : "InventoryMigration",
       "Tables" : [
         "[inventory].[TBL_Products]"
@@ -59,8 +59,15 @@ dotnet tool install --global Siganberg.SqlGen
 
 On CLI (command-line interface), execute the following command to start the generation. 
 
+This command will generate all sql objects and it's dependencies that are specified in the  `sqlgen.json`.
 ```console
 /<path_where_sqlgen.json>/sqlgen
+```
+
+
+This command will only generate `[ShopDb].[shop].[TBL_Orders]` and it's dependencies then automatically add it to the `sqlgen.json` once it's done generating. 
+```console
+/<path_where_sqlgen.json>/sqlgen "[ShopDb].[shop].[TBL_Orders]"
 ```
 
 
