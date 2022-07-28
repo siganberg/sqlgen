@@ -11,5 +11,6 @@ var connection = new ServerConnection(config.Server, config.Username, config.Pas
 var server = new Server(connection);
 var generator = new GeneratorService(config, server);
 
-var name = Environment.GetCommandLineArgs();
-generator.Run(name.Length > 1 ? name[1] : string.Empty);
+var argument = new ArgumentParser().Parse(Environment.GetCommandLineArgs());
+
+generator.Run(argument);

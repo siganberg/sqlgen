@@ -15,7 +15,8 @@ public class GeneratorService
     private readonly ILogger _logger;
     private readonly SqlGenConfig _config;
     private readonly Server _server;
-    private readonly string _rootPath; 
+    private readonly string _rootPath;
+
     public GeneratorService(SqlGenConfig configuration, Server server)
     {
         _logger = new LoggerConfiguration()
@@ -24,99 +25,127 @@ public class GeneratorService
         _config = configuration;
         _server = server;
         _rootPath = Directory.GetCurrentDirectory() + "/" + _config.TargetPath;
-
     }
 
-    public void Run(string sqlObject)
+    public void Run(CommandList commandList)
     {
-        
-        _logger.Information("Generating SQL Generator starting...");
+        _logger.Information("SQL Script Generator starting...");
 
-        if (!string.IsNullOrEmpty(sqlObject))
-            GenerateUsingParameterSqlObject(sqlObject);
-        else
-            GenerateUsingJsonSqlObjects();
+        var updateJson = commandList != null; 
+        
+        commandList ??= GenerateCommandListFromJson();
+      
+        GenerateFromCommandList(commandList, updateJson);
 
         _logger.Information("Generation completed!");
     }
 
-    private void GenerateUsingParameterSqlObject(string expression)
+    private void GenerateFromCommandList(CommandList commandList, bool updateJson = false)
     {
-        var dbName = expression.Substring(0, expression.IndexOf(".", StringComparison.Ordinal)).StripBracket();
-        var nameAndSchema = expression.Substring(expression.IndexOf(".", StringComparison.Ordinal)+1);
-
-        var database = GetDatabase(dbName);
-        if (database == null) return;
-        
         var urns = new HashSet<Urn>();
-        urns.UnionWith(CollectUrn(new [] { nameAndSchema}, (name, schema) => database.Tables[name, schema]));
-        urns.UnionWith(CollectUrn(new [] { nameAndSchema}, (name, schema) => database.StoredProcedures[name, schema]));
-        urns.UnionWith(CollectUrn(new [] { nameAndSchema}, (name, schema) => database.Views[name, schema]));
 
-        if (urns.Count == 0) 
-            _logger.Information("No sql object found matching the given parameter");
-        
-        DetectDependenciesAndGenerate(urns);
-
-        SaveJsonConfig(dbName, urns.First());
-    }
-
-    private void SaveJsonConfig(string dbName, Urn urn)
-    {
-        var dbConfig = _config.Databases.FirstOrDefault(a => a.Name.ToLower() == dbName.ToLower());
-        if (dbConfig == null)
+        foreach (var command in commandList.Commands)
         {
-            dbConfig = new SqlGenConfig.Database
+            var database = GetDatabase(command.DbName);
+            if (database == null) continue;
+            var obj = command.Type switch
             {
-                Name = dbName
+                "t" => database.Tables[command.Name, command.Schema],
+                "s" => database.StoredProcedures[command.Name, command.Schema],
+                "v" => (SqlSmoObject)database.Views[command.Name, command.Schema],
+                _ => throw new ArgumentOutOfRangeException()
             };
-            _config.Databases.Add(dbConfig);
+            if (obj == null)
+            {
+                _logger.Information("{Type} [{Schema}].[{Name}] not found in database: {Database}", GetTypeName(command.Type), command.Schema, command.Name, command.DbName);
+                continue;
+            }
+            urns.Add(obj.Urn);
         }
 
-        var fullName = $"[{urn.GetAttribute("Schema")}].[{urn.GetAttribute("Name")}]";
-        switch (urn.Type)
+        if (urns.Count <= 0) return;
+        
+        DetectDependenciesAndGenerate(urns);
+        if (updateJson)
+            SaveJsonConfig(commandList);
+
+    }
+    
+    
+
+    private string GetTypeName(string type)
+    {
+       return type switch
+       {
+           "t" =>  "Table",
+           "s" =>  "StoredProcedure",
+           "v" =>  "View",
+           _ => ""
+       };
+    }
+
+    private void SaveJsonConfig(CommandList commandList)
+    {
+        foreach (var command in commandList.Commands)
         {
-            case "StoredProcedure":
-                dbConfig.StoredProcedures.Add(fullName);
-                break;
-            case "Table":
-                dbConfig.Tables.Add(fullName);
-                break;
-            case "View":
-                dbConfig.Views.Add(fullName);
-                break;
+            var dbConfig = _config.Databases.FirstOrDefault(a => a.Name.ToLower() == command.DbName.ToLower());
+            if (dbConfig == null)
+            {
+                dbConfig = new SqlGenConfig.Database
+                {
+                    Name = command.DbName
+                };
+                _config.Databases.Add(dbConfig);
+            }
+
+            var fullName = $"[{command.Schema}].[{command.Name}]";
+            switch (command.Type)
+            {
+                case "s":
+                    dbConfig.StoredProcedures.Add(fullName);
+                    break;
+                case "t":
+                    dbConfig.Tables.Add(fullName);
+                    break;
+                case "v":
+                    dbConfig.Views.Add(fullName);
+                    break;
+            }
         }
         
         var path = Directory.GetCurrentDirectory() + "/sqlgen.json";
         _logger.Information("Updating sqlgen.json");
         using var file = File.CreateText(path);
-        file.Write(JsonSerializer.Serialize(_config, new JsonSerializerOptions{ WriteIndented = true, DefaultIgnoreCondition  = JsonIgnoreCondition.WhenWritingDefault }));
+        file.Write(JsonSerializer.Serialize(_config,
+            new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault }));
         file.Close();
+      
     }
 
- 
 
-    private void GenerateUsingJsonSqlObjects()
+    private CommandList GenerateCommandListFromJson()
     {
+        _logger.Information("Generating from sqlgen.json");
+        var commandList = new CommandList();
         foreach (var d in _config.Databases)
         {
-            _logger.Information("Generating database scripts for {Name}", d.Name);
-            var urns = new HashSet<Urn>();
-
-            if (ValidateDatabaseInput(d))
-                continue;
-
-            var database = GetDatabase(d.Name);
-            if (database == null) continue;
-
-            urns.UnionWith(CollectUrn(d.Tables, (name, schema) => database.Tables[name, schema]));
-            urns.UnionWith(CollectUrn(d.StoredProcedures, (name, schema) => database.StoredProcedures[name, schema]));
-            urns.UnionWith(CollectUrn(d.Views, (name, schema) => database.Views[name, schema]));
-
-            if (urns.Count == 0) continue;
-
-            DetectDependenciesAndGenerate(urns);
+            commandList.Commands.AddRange(d.Tables.Select(a => CreateCommand("t", d.Name, a)));
+            commandList.Commands.AddRange(d.StoredProcedures.Select(a => CreateCommand("s", d.Name, a)));
+            commandList.Commands.AddRange(d.Views.Select(a => CreateCommand("v", d.Name, a)));
         }
+        return commandList;
+    }
+
+    private Command CreateCommand(string command, string dbName, string schemaAndName)
+    {
+        var split = schemaAndName.StripBracket().Split(".");
+        return new Command
+        {
+            Type = command,
+            DbName = dbName,
+            Schema = split[0],
+            Name = split[1]
+        };
     }
 
     private void DetectDependenciesAndGenerate(HashSet<Urn> urns)
@@ -127,17 +156,6 @@ public class GeneratorService
             GenerateSchema(schema);
     }
 
-    private bool ValidateDatabaseInput(SqlGenConfig.Database d)
-    {
-        if (string.IsNullOrEmpty(d.Name))
-        {
-            _logger.Information("Database name cannot be empty");
-            return true;
-        }
-
-        return false;
-    }
-
     private Database GetDatabase(string name)
     {
         var database = _server.Databases[name];
@@ -145,10 +163,9 @@ public class GeneratorService
             _logger.Information("Database with name {Name} not found", name);
         return database;
     }
-    
+
     private Database GetDatabase(Urn urn)
     {
-   
         while (urn != null)
         {
             if (urn.Type == "Database")
@@ -159,8 +176,10 @@ public class GeneratorService
                     _logger.Warning("Database with name {Name} doesn't exist", name);
                 return database;
             }
+
             urn = urn.Parent;
         }
+
         return null;
     }
 
@@ -171,7 +190,7 @@ public class GeneratorService
         foreach (var dep in depCollection)
         {
             var database = GetDatabase(dep.Urn);
-            if (database == null) continue; 
+            if (database == null) continue;
             GenerateSqlFileFromUrn(dep.Urn, database);
             schemas.Add($"{database.Name}.{dep.Urn.GetAttribute("Schema")}");
         }
@@ -212,15 +231,14 @@ public class GeneratorService
             name = databaseName.StripBracket();
         return name;
     }
-    
-  
+
 
     private T GetSqlObject<T>(Urn urn, Func<string, string, T> func)
     {
         var name = urn.GetAttribute("Name");
         var schema = urn.GetAttribute("Schema");
         var obj = func.Invoke(name, schema);
-        
+
         if (obj == null)
             _logger.Warning("SQL object or the dependencies doesn't exist:  {Schema}.{Name}", schema, name);
         return obj;
@@ -233,21 +251,6 @@ public class GeneratorService
         var depCollection = depWalker.WalkDependencies(tree);
         return depCollection;
     }
-
-    private static List<Urn> CollectUrn(IEnumerable<string> names, Func<string, string, SqlSmoObject> collector)
-    {
-        var urns = new List<Urn>();
-        foreach (var name in names)
-        {
-            var split = name.Split(".");
-            var sqlObject = collector.Invoke(split[1].StripBracket(), split[0].StripBracket());
-            if (sqlObject == null) continue;
-            urns.Add(sqlObject.Urn);
-        }
-
-        return urns;
-    }
-
     void GenerateFile(ScriptSchemaObjectBase sqlObject, string targetPath, Action<ScriptingOptions> callback)
     {
         if (sqlObject == null) return;

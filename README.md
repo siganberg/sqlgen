@@ -18,6 +18,29 @@ Install the tools globally.
 dotnet tool install --global Siganberg.SqlGen
 ```
 
+## Usage
+
+The tool can generate sql script  from `sqlgen.json` or from command line parameters. `sqlgen.json` still require to store server and credential information.
+
+This command will generate all sql objects and it's dependencies that are specified in the  `sqlgen.json`.
+```console
+/<path_where_sqlgen.json>/sqlgen
+```
+
+
+This command will only generate `[ShopDb].[shop].[TBL_Orders]` table and it's dependencies then automatically add it to the `sqlgen.json` once it's done generating.
+```console
+/<path_where_sqlgen.json>/sqlgen -t "[ShopDb].[shop].[TBL_Orders]"
+```
+
+## CLI Parameters
+
+| Property                       | Descriptions                                                              |
+|--------------------------------|---------------------------------------------------------------------------|
+| -t ***<db.schema.tableName>*** | Generate script for table. You can pass multiple `-t` values.             |   
+| -s ***<db.schema.tableName>*** | Generate script for stored procedures. You can pass multiple `-s` values. |   
+| -t ***<db.schema.tableName>*** | Generate script for view. You can pass multiple `-s` values.              |   
+
 
 ## Sample `sqlgen.json`
 
@@ -55,20 +78,6 @@ dotnet tool install --global Siganberg.SqlGen
 ```
 
 
-## Usage
-
-On CLI (command-line interface), execute the following command to start the generation. 
-
-This command will generate all sql objects and it's dependencies that are specified in the  `sqlgen.json`.
-```console
-/<path_where_sqlgen.json>/sqlgen
-```
-
-
-This command will only generate `[ShopDb].[shop].[TBL_Orders]` and it's dependencies then automatically add it to the `sqlgen.json` once it's done generating. 
-```console
-/<path_where_sqlgen.json>/sqlgen "[ShopDb].[shop].[TBL_Orders]"
-```
 
 
 
