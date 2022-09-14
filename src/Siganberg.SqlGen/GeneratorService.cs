@@ -46,18 +46,25 @@ public class GeneratorService
 
         foreach (var command in commandList.Commands)
         {
-            var database = GetDatabase(command.DbName);
-            if (database == null) continue;
-            var obj = command.Type switch
+            var dbName = command.DbName;
+            if (string.IsNullOrEmpty(dbName))
             {
-                "t" => database.Tables[command.Name, command.Schema],
-                "s" => database.StoredProcedures[command.Name, command.Schema],
-                "v" => (SqlSmoObject)database.Views[command.Name, command.Schema],
-                _ => throw new ArgumentOutOfRangeException()
-            };
+                dbName = GetFirstDbNameFromJson();
+                command.DbName = dbName;
+            }
+            if (string.IsNullOrEmpty(dbName))
+                _logger.Error("dbName: \"{DbName}\" not found", dbName);
+            
+            var database = GetDatabase(dbName);
+            if (database == null) continue;
+
+            var obj = database.Tables[command.Name, command.Schema]
+                       ?? (SqlSmoObject)database.StoredProcedures[command.Name, command.Schema]
+                       ?? database.Views[command.Name, command.Schema];
+            
             if (obj == null)
             {
-                _logger.Information("{Type} [{Schema}].[{Name}] not found in database: {Database}", GetTypeName(command.Type), command.Schema, command.Name, command.DbName);
+                _logger.Information("[{Schema}].[{Name}] not found in database: {Database}", command.Schema, command.Name, dbName);
                 continue;
             }
             urns.Add(obj.Urn);
@@ -70,18 +77,10 @@ public class GeneratorService
             SaveJsonConfig(commandList);
 
     }
-    
-    
 
-    private string GetTypeName(string type)
+    private string GetFirstDbNameFromJson()
     {
-       return type switch
-       {
-           "t" =>  "Table",
-           "s" =>  "StoredProcedure",
-           "v" =>  "View",
-           _ => ""
-       };
+        return _config.Databases.FirstOrDefault()?.Name;
     }
 
     private void SaveJsonConfig(CommandList commandList)
@@ -189,6 +188,7 @@ public class GeneratorService
 
         foreach (var dep in depCollection)
         {
+            if (dep.Urn.Type == "UnresolvedEntity") continue;
             var database = GetDatabase(dep.Urn);
             if (database == null) continue;
             GenerateSqlFileFromUrn(dep.Urn, database);

@@ -30,16 +30,13 @@ This command will generate all sql objects and it's dependencies that are specif
 
 This command will only generate `[ShopDb].[shop].[TBL_Orders]` table and it's dependencies then automatically add it to the `sqlgen.json` once it's done generating.
 ```console
-/<path_where_sqlgen.json>/sqlgen -t "[ShopDb].[shop].[TBL_Orders]"
+/<path_where_sqlgen.json>/sqlgen "[ShopDb].[shop].[TBL_Orders]"
 ```
+Database is optional only if you already have sqlgen.json generated. The first Database will be use with this command:
 
-## CLI Parameters
-
-| Property                       | Descriptions                                                              |
-|--------------------------------|---------------------------------------------------------------------------|
-| -t ***<db.schema.tableName>*** | Generate script for table. You can pass multiple `-t` values.             |   
-| -s ***<db.schema.tableName>*** | Generate script for stored procedures. You can pass multiple `-s` values. |   
-| -t ***<db.schema.tableName>*** | Generate script for view. You can pass multiple `-s` values.              |   
+```console
+/<path_where_sqlgen.json>/sqlgen "[shop].[TBL_Orders]"
+```
 
 
 ## Sample `sqlgen.json`

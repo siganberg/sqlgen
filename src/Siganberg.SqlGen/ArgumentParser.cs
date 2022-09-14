@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Siganberg.SqlGen;
 
 public class CommandList
 {
-    public string Server { get; set; }
-    public string UserName { get; set; }
-    public string Password { get; set; }
-    public string TargetPath { get; set; }
     public List<Command> Commands { get; set; }
 
     public CommandList()
@@ -33,47 +30,32 @@ public class ArgumentParser
             return null; 
         
         var commandList = new CommandList();
-        for (var i = 1; i < args.Length; i+=2)
+        commandList.Commands = args.Skip(1).Select(a =>
         {
-            var command = args[i].Replace("-", "");
-            if (i+1 == args.Length) 
-                throw new ArgumentException($"Missing value for command {command}");
+            var value = a.StripBracket().Split(".");
 
-            switch (command)
+            switch (value.Length)
             {
-                case "--server":
-                    commandList.Server = args[i + 1];
-                    break;
-                case "--username":
-                    commandList.UserName = args[i + 1];
-                    break;
-                case "--password":
-                    commandList.Password = args[i + 1];
-                    break;
-                case "--targetPath":
-                    commandList.TargetPath = args[i + 1];
-                    break;
-                default:
-                {
-                    var value = args[i + 1].StripBracket().Split(".");
-
-                    if (value.Length != 3)
-                        throw new ArgumentException($"Invalid value {value}." + " Format should be {dbName}.{schema}.{name}");
-
-                    commandList.Commands.Add(new Command
+                case < 2:
+                    throw new ArgumentException($"Invalid value {value}." + " Format should be {dbName}.{schema}.{name}. If {dbName} is not specified, it will try to use the first dbName on the sqlgen.json");
+                case 3:
+                    return new Command
                     {
-                        Type = command,
                         DbName = value[0],
                         Schema = value[1],
                         Name = value[2]
-                    });
-                    break;
-                }
+                    };
+                default:
+                    return new Command
+                    {
+                        Schema = value[0],
+                        Name = value[1]
+                    };
             }
-
-        }
+        }).ToList();
+        
         return commandList;
     }
 
-
+  
 }
