@@ -62,11 +62,15 @@ public class GeneratorService
                        ?? (SqlSmoObject)database.StoredProcedures[command.Name, command.Schema]
                        ?? database.Views[command.Name, command.Schema];
             
+            
             if (obj == null)
             {
                 _logger.Information("[{Schema}].[{Name}] not found in database: {Database}", command.Schema, command.Name, dbName);
                 continue;
             }
+
+            command.Type = obj.Urn.Type.Substring(0, 1).ToLower();
+            
             urns.Add(obj.Urn);
         }
 
