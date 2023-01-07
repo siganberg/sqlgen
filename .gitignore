@@ -36,3 +36,4 @@ Desktop.ini
 sqlgen.json
 **Migrations
 **.nupkg
+**.sql

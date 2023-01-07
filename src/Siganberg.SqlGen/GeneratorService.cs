@@ -209,19 +209,19 @@ public class GeneratorService
             case "Table":
             {
                 var obj = GetSqlObject(urn, (name, schema) => database.Tables[name, schema]);
-                GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/Tables", o => obj.Script(o));
+                GenerateFile(obj, $"{_rootPath}{MapDatabaseToFolderName(database.Name)}/Tables", o => obj.Script(o));
                 break;
             }
             case "StoredProcedure":
             {
                 var obj = GetSqlObject(urn, (name, schema) => database.StoredProcedures[name, schema]);
-                GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/StoredProcedures", o => obj.Script(o));
+                GenerateFile(obj, $"{_rootPath}{MapDatabaseToFolderName(database.Name)}/StoredProcedures", o => obj.Script(o));
                 break;
             }
             case "View":
             {
                 var obj = GetSqlObject(urn, (name, schema) => database.Views[name, schema]);
-                GenerateFile(obj, $"{_rootPath}/{MapDatabaseToFolderName(database.Name)}/Views", o => obj.Script(o));
+                GenerateFile(obj, $"{_rootPath}{MapDatabaseToFolderName(database.Name)}/Views", o => obj.Script(o));
                 break;
             }
         }
@@ -277,7 +277,7 @@ public class GeneratorService
         var split = schemaName.Split(".");
         var databaseName = split[0];
         var name = split[1];
-        var path = $"{_rootPath}/{MapDatabaseToFolderName(databaseName)}/Schemas/{name}.sql";
+        var path = $"{_rootPath}{MapDatabaseToFolderName(databaseName)}/Schemas/{name}.sql";
         CreateDirectoryFirst(path);
         _logger.Information("Generating file: {Path}", path);
         using var file = File.CreateText(path);

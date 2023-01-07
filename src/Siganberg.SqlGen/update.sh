@@ -1,1 +1,1 @@
-dotnet tool update -g Siganberg.SqlGen --add-source nupkg 
+dotnet tool update -g Siganberg.SqlGen --add-source nupkg
